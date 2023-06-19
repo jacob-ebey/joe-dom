@@ -1,0 +1,49 @@
+{
+  "name": "joe-dom",
+  "version": "0.0.0",
+  "type": "module",
+  "license": "MIT",
+  "files": [
+    "dist/src",
+    "jsx-runtime",
+    "src"
+  ],
+  "main": "dist/src/joe-dom.js",
+  "types": "dist/src/joe-dom.d.ts",
+  "exports": {
+    ".": {
+      "source": "./src/joe-dom.ts",
+      "types": "./dist/src/joe-dom.d.ts",
+      "import": "./dist/src/joe-dom.js"
+    },
+    "./server": {
+      "source": "./src/joe-dom.server.ts",
+      "types": "./dist/src/joe-dom.server.d.ts",
+      "import": "./dist/src/joe-dom.server.js"
+    },
+    "./jsx-runtime": {
+      "types": "./jsx-runtime/src/index.d.ts",
+      "import": "./jsx-runtime/src/index.js"
+    },
+    "./jsx-dev-runtime": {
+      "types": "./jsx-runtime/src/index.d.ts",
+      "import": "./jsx-runtime/src/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b && cp src/types.d.ts dist/src/types.d.ts && cp src/jsx.d.ts dist/src/jsx.d.ts",
+    "test": "node run-tests.js"
+  },
+  "private": true,
+  "dependencies": {
+    "devalue": "4.3.2"
+  },
+  "devDependencies": {
+    "arg": "5.0.2",
+    "cross-env": "7.0.3",
+    "glob": "10.2.7",
+    "source-map-support": "0.5.21",
+    "tsx": "3.12.7",
+    "typescript": "5.1.3"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "include": ["src/**/*"],
+  "compilerOptions": {
+    "composite": true,
+    "module": "ES2022",
+    "target": "ES2022",
+    "moduleResolution": "node",
+    "jsx": "react-jsx",
+    "jsxImportSource": "joe-dom",
+    "noEmit": true
+  }
+}

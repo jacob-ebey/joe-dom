@@ -1,0 +1,13 @@
+{
+  "name": "jsx-runtime",
+  "version": "0.0.0",
+  "type": "module",
+  "types": "src/index.d.ts",
+  "main": "src/index.js",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "import": "./src/index.js"
+    }
+  }
+}

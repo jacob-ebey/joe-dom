@@ -1,0 +1,21 @@
+{
+  "name": "joe-dom-workspace",
+  "version": "0.0.0",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "nx run-many --targets=build",
+    "test": "NX_VERBOSE_LOGGING=true nx run-many --targets=test"
+  },
+  "private": true,
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "20.3.1",
+    "nx": "16.3.2",
+    "nx-cloud": "latest"
+  },
+  "workspaces": [
+    "fixtures/*",
+    "packages/*"
+  ]
+}
