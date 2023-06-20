@@ -1,10 +1,19 @@
+import * as fs from "node:fs";
 import * as http from "node:http";
+import * as path from "node:path";
 import * as stream from "node:stream";
 import * as webStream from "node:stream/web";
+import * as url from "node:url";
 
 import { render } from "joe-dom/server";
 
-import { App } from "./app";
+// import { App } from "./app";
+let appPath = path.resolve(
+  path.dirname(url.fileURLToPath(import.meta.url)),
+  "app.tsx"
+);
+let lastAppTS = fs.statSync(appPath).mtimeMs;
+let { App } = await import("./app");
 
 // if (process.env.NODE_ENV === "development") {
 let dev: Awaited<ReturnType<typeof import("./dev").watch>>;
@@ -31,6 +40,12 @@ http
           });
           res.end(new TextDecoder().decode(asset.contents));
           return;
+        }
+
+        const ts = fs.statSync(appPath).mtimeMs;
+        if (ts > lastAppTS) {
+          lastAppTS = ts;
+          ({ App } = await import("./app?" + ts));
         }
       }
       const rendered = render<webStream.ReadableStream>(<App />, {

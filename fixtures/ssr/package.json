@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc -b",
-    "start": "JOE_CLIENT=1 node --no-warnings --loader tsx --loader joe-dom/node-loader --watch --conditions source src/server.tsx"
+    "start": "JOE_CLIENT=1 node --no-warnings --loader tsx --loader joe-dom/node-loader --conditions source src/server.tsx"
   },
   "dependencies": {
     "joe-dom": "*",

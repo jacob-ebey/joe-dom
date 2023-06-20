@@ -5,13 +5,15 @@ import * as mime from "mime-types";
 
 import * as metadata from "joe-dom/metadata";
 
-export async function watch() {
-  let clientModules = Array.from(metadata.clientModules).map((m) =>
+let buildPromise: Promise<esbuild.BuildResult> | null = null;
+let buildDone: (result: esbuild.BuildResult) => void;
+
+async function createContext() {
+  const clientModules = Array.from(metadata.clientModules).map((m) =>
     path.join(process.cwd(), String(m))
   );
   clientModules.push("joe-dom");
-  let size = metadata.clientModules.size;
-  let buildResult = await esbuild.build({
+  return await esbuild.context({
     absWorkingDir: process.cwd(),
     entryPoints: clientModules,
     format: "esm",
@@ -22,10 +24,28 @@ export async function watch() {
     bundle: true,
     metafile: true,
     write: false,
-    minify: true,
-    sourcemap: true,
+    logLevel: "info",
+    plugins: [
+      {
+        name: "dev-plugin",
+        setup(build) {
+          build.onStart(() => {
+            buildPromise = new Promise<esbuild.BuildResult>((resolve) => {
+              buildDone = resolve;
+            });
+          });
+          build.onEnd((result) => {
+            buildDone(result);
+          });
+        },
+      },
+    ],
   });
+}
 
+export async function watch() {
+  let context = await createContext();
+  let buildResult = await context.rebuild();
   if (buildResult.errors.length > 0) {
     throw new Error(
       (
@@ -37,8 +57,21 @@ export async function watch() {
     );
   }
 
+  context.watch({});
+
+  let clientModulesSize = metadata.clientModules.size;
   return {
     async getAsset(url: URL) {
+      if (clientModulesSize !== metadata.clientModules.size) {
+        clientModulesSize = metadata.clientModules.size;
+        await context.dispose();
+        context = await createContext();
+        buildResult = await context.rebuild();
+        context.watch({});
+      } else {
+        buildResult = (await buildPromise) || buildResult;
+      }
+
       const map = new Map(
         buildResult.outputFiles.map((o) => [
           "/" +
@@ -60,40 +93,18 @@ export async function watch() {
       }
     },
     async getClientReferenceId(id: string | number) {
+      if (clientModulesSize !== metadata.clientModules.size) {
+        clientModulesSize = metadata.clientModules.size;
+        await context.dispose();
+        context = await createContext();
+        buildResult = await context.rebuild();
+        context.watch({});
+      } else {
+        buildResult = (await buildPromise) || buildResult;
+      }
+
       if (typeof id !== "string") throw new Error("Expected non-string id");
       let [pathname, exp] = id.split("#", 2);
-
-      if (size !== metadata.clientModules.size) {
-        clientModules = Array.from(metadata.clientModules).map((m) =>
-          path.join(process.cwd(), String(m))
-        );
-        clientModules.push("joe-dom");
-        buildResult = await esbuild.build({
-          absWorkingDir: process.cwd(),
-          entryPoints: clientModules,
-          format: "esm",
-          target: "es2020",
-          outdir: path.join(process.cwd(), "public/build"),
-          publicPath: "/build/",
-          splitting: true,
-          bundle: true,
-          metafile: true,
-          write: false,
-          minify: true,
-          sourcemap: true,
-        });
-
-        if (buildResult.errors.length > 0) {
-          throw new Error(
-            (
-              await esbuild.formatMessages(buildResult.errors, {
-                kind: "error",
-                color: true,
-              })
-            ).join("\n")
-          );
-        }
-      }
 
       for (const [key, value] of Object.entries(buildResult.metafile.outputs)) {
         if (id === "joe-dom") {
