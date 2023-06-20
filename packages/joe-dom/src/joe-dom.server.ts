@@ -1,6 +1,7 @@
-import { Fragment, VNODE_SYMBOL } from "./joe-dom.js";
+import { CLIENT_SYMBOL } from "./joe-dom.js";
 
 import type {
+  ClientComponent,
   ComponentChild,
   ComponentChildren,
   ComponentProps,
@@ -8,19 +9,19 @@ import type {
   VNode,
 } from "./types.js";
 import type { JSXInternal } from "./jsx.js";
+import { fallbackRuntime, islandRuntime } from "./runtime.js";
+export { deserialize, serialize } from "./serializer.js";
 import {
   UNSAFE_NAME,
   VOID_ELEMENTS,
   XLINK,
   XLINK_REPLACE_REGEX,
   encodeEntities,
-  fallbackRuntime,
   isPromise,
   styleObjToCss,
 } from "./utils.js";
-export { deserialize, serialize } from "./serializer.js";
 
-interface NextId {
+interface IDIncrementor {
   (): number;
   previous: number;
 }
@@ -32,6 +33,9 @@ export type AllReadyReadableStream<ReadableStreamType = ReadableStream> =
 
 export interface RenderOptions {
   signal?: AbortSignal;
+  getClientReferenceId?: (
+    id: string | number
+  ) => string | number | Promise<string | number>;
 }
 
 export function render<ReadableStreamType = ReadableStream>(
@@ -56,31 +60,43 @@ export function render<ReadableStreamType = ReadableStream>(
   });
   allReadyPromise.catch(() => {});
 
-  let idIncrementor = -1;
-  const nextId = (() => ++idIncrementor) as NextId;
-  Object.defineProperties(nextId, {
-    previous: { enumerable: true, get: () => idIncrementor },
+  let fallbackIdIncrementor = -1;
+  const nextFallbackId = (() => ++fallbackIdIncrementor) as IDIncrementor;
+  Object.defineProperties(nextFallbackId, {
+    previous: { enumerable: true, get: () => fallbackIdIncrementor },
+  });
+  let islandIdIncrementor = -1;
+  const nextIslandId = (() => ++islandIdIncrementor) as IDIncrementor;
+  Object.defineProperties(nextIslandId, {
+    previous: { enumerable: true, get: () => islandIdIncrementor },
   });
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        const queuedPromises = [];
+        let queuedPromises = [];
         const queueChunk = (promise) => {
           queuedPromises.push(promise);
         };
         const html = await renderChildren(
           children,
-          nextId,
+          nextFallbackId,
+          nextIslandId,
           queueChunk,
+          options,
           null,
+          false,
           false
         );
         controller.enqueue(encoder.encode(html));
 
         if (queuedPromises.length > 0) {
           controller.enqueue(encoder.encode(fallbackRuntime));
+          // TODO: Make this runtime optional
+          controller.enqueue(encoder.encode(islandRuntime));
+        }
+        while (queuedPromises.length > 0) {
           const processQueuedPromises = [];
           for (const promise of queuedPromises) {
             processQueuedPromises.push(
@@ -89,7 +105,9 @@ export function render<ReadableStreamType = ReadableStream>(
               })
             );
           }
-          await Promise.all(queuedPromises);
+          queuedPromises = [];
+          queuedPromises.length = 0;
+          await Promise.all(processQueuedPromises);
         }
 
         controller.close();
@@ -122,10 +140,13 @@ export function render<ReadableStreamType = ReadableStream>(
 
 async function renderChildren(
   children: ComponentChildren,
-  nextId: NextId,
+  nextFallbackId: IDIncrementor,
+  nextIslandId: IDIncrementor,
   queueChunk: (chunk: Promise<string>) => void,
+  options: RenderOptions,
   selectedValue: string | null,
-  svgMode: boolean
+  svgMode: boolean,
+  clientMode: boolean
 ) {
   if (children == null) return "";
   const childrenToRender = Array.isArray(children) ? children : [children];
@@ -140,10 +161,13 @@ async function renderChildren(
       let html = "";
       for await (const chunk of renderChild(
         child,
-        nextId,
+        nextFallbackId,
+        nextIslandId,
         queueChunk,
+        options,
         selectedValue,
-        childSvgMode
+        childSvgMode,
+        clientMode
       )) {
         html += chunk;
       }
@@ -159,10 +183,13 @@ async function renderChildren(
 
 async function* renderChild(
   child: ComponentChild,
-  nextId: NextId,
+  nextFallbackId: IDIncrementor,
+  nextIslandId: IDIncrementor,
   queueChunk: (chunk: Promise<string>) => void,
+  options: RenderOptions,
   selectedValue: string | null,
-  svgMode: boolean
+  svgMode: boolean,
+  clientMode: boolean
 ): AsyncGenerator<string> {
   if (isPromise(child)) {
     child = await child;
@@ -182,38 +209,72 @@ async function* renderChild(
     default:
       if (!child) return yield "";
       let { $$typeof, type, props } = (child as VNode) || {};
-      if (
-        $$typeof !== VNODE_SYMBOL ||
-        (typeof type !== "string" && typeof type !== "function")
-      ) {
+      if (typeof type !== "string" && typeof type !== "function") {
         throw new Error("Invalid child type '" + typeof type + "'");
       }
 
       if (typeof type !== "string") {
         type = type as FunctionComponent;
-        let children = type(props);
+        let children = type(props, {});
+
+        // options._commit, we don't schedule any effects in this library right now,
+        // so we can pass an empty queue to this hook.
+
         const prom = isPromise(children);
-        let id = prom ? nextId() : nextId.previous;
+        let id = prom ? nextFallbackId() : nextFallbackId.previous;
+        let clientComponent = type.$$typeof === CLIENT_SYMBOL;
+        let fellback = false;
+
         const renderedChildren = renderChildren(
           children,
-          nextId,
+          nextFallbackId,
+          nextIslandId,
           queueChunk,
+          options,
           selectedValue,
-          svgMode
-        );
-        if ((prom || id !== nextId.previous) && type.fallback) {
+          svgMode,
+          clientComponent
+        ).then(async (rendered) => {
+          let r = "";
+          let islandId =
+            (fellback && clientComponent) || (clientComponent && !clientMode)
+              ? nextIslandId()
+              : undefined;
+          if (typeof islandId === "number") {
+            r += `<!--joec:${islandId}-->`;
+          }
+          r += rendered;
+          if (typeof islandId === "number") {
+            r += `<!--/joec:${islandId}-->`;
+            if (!options.getClientReferenceId) {
+              throw new Error(
+                "Missing getClientReferenceId option for client component"
+              );
+            }
+            queueChunk(
+              Promise.resolve(
+                `<script>window.$_JOE_INIT.promise.then(() => $_JOE(${JSON.stringify(
+                  islandId
+                )}, ${JSON.stringify(
+                  await options.getClientReferenceId("joe-dom")
+                )}, ${JSON.stringify(
+                  await options.getClientReferenceId(
+                    (type as ClientComponent<any>).$$id
+                  )
+                )}, ${JSON.stringify(props)}))</script>`
+              )
+            );
+          }
+          return r;
+        });
+        if ((prom || id !== nextFallbackId.previous) && type.fallback) {
+          fellback = true;
           if (!prom) {
-            id = nextId();
+            id = nextFallbackId();
           }
           const fallback = type.fallback(props);
 
-          const chunkPromise = renderChildren(
-            children,
-            nextId,
-            queueChunk,
-            selectedValue,
-            svgMode
-          ).then((chunk) => {
+          const chunkPromise = renderedChildren.then((chunk) => {
             return `<joe-fb hidden data-id="${id}">${chunk}</joe-fb>`;
           });
           // TODO: catch errors from chunkPromise
@@ -223,22 +284,29 @@ async function* renderChild(
           // TODO: queue children to render after fallback
           const fallbackHTML = await renderChildren(
             fallback,
-            nextId,
+            nextFallbackId,
+            nextIslandId,
             queueChunk,
+            options,
             selectedValue,
-            svgMode
+            svgMode,
+            clientMode
           );
 
           return yield `<!--joe:${id}-->${fallbackHTML}<!--/joe:${id}-->`;
         }
+
         return yield renderedChildren;
       }
       return yield renderDOMNode(
         child as VNode,
-        nextId,
+        nextFallbackId,
+        nextIslandId,
         queueChunk,
+        options,
         selectedValue,
-        svgMode
+        svgMode,
+        clientMode
       );
   }
 }
@@ -246,10 +314,13 @@ async function* renderChild(
 // Adapted from https://github.com/preactjs/preact-render-to-string
 async function renderDOMNode(
   vnode: VNode<ComponentProps<keyof JSXInternal.IntrinsicElements>>,
-  nextId: NextId,
+  nextFallbackId: IDIncrementor,
+  nextIslandId: IDIncrementor,
   queueChunk: (chunk: Promise<string>) => void,
+  options: RenderOptions,
   selectedValue: string | null,
-  svgMode: boolean
+  svgMode: boolean,
+  clientMode: boolean
 ) {
   const { type, props } = vnode as Omit<
     VNode<ComponentProps<keyof JSXInternal.IntrinsicElements>>,
@@ -361,10 +432,13 @@ async function renderDOMNode(
   if (!selfClosed && children != null) {
     html += await renderChildren(
       children,
-      nextId,
+      nextFallbackId,
+      nextIslandId,
       queueChunk,
+      options,
       selectedValue,
-      svgMode
+      svgMode,
+      clientMode
     );
   }
 

@@ -9,6 +9,7 @@ export function App() {
         <title>joe-dom</title>
       </head>
       <body>
+        <SayHello name="Root" />
         <Boundary>
           <Profile />
         </Boundary>
@@ -22,5 +23,5 @@ Boundary.fallback = () => <div>Loading...</div>;
 
 const Profile: FunctionComponent = async () => {
   await new Promise((resolve) => setTimeout(resolve, 1000));
-  return <SayHello name="World!" />;
+  return <SayHello name="World" />;
 };

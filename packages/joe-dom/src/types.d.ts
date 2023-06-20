@@ -86,6 +86,8 @@ export type ComponentProps<
   : never;
 
 export interface FunctionComponent<P = {}> {
+  $$typeof?: symbol | undefined;
+  $$id?: string | number | undefined;
   (props: RenderableProps<P>, context?: any): ComponentChild;
   displayName?: string;
   defaultProps?: Partial<P> | undefined;

@@ -2,7 +2,6 @@
 import {
   type FunctionComponent,
   CLIENT_SYMBOL,
-  VNODE_SYMBOL,
   createElement,
 } from "./joe-dom.js";
 
@@ -174,10 +173,7 @@ export async function deserialize(
                 const fvnode = hydrate(value[2]);
                 Component.fallback = () => fvnode;
               }
-              hydrated[index] = {
-                $$typeof: VNODE_SYMBOL,
-                type: Component,
-              };
+              hydrated[index] = createElement(Component);
               break;
 
             case "CNode":
@@ -442,9 +438,17 @@ function serializeValue(
             break;
           }
 
-          if (thing.$$typeof === VNODE_SYMBOL) {
+          if (thing && "__c" in thing && thing.type) {
+            if (thing.type.$$typeof === CLIENT_SYMBOL) {
+              str = `["CNode",${flatten(thing.type.$$id)},${flatten(
+                thing.props
+              )}]`;
+              break;
+            }
+
             if (typeof thing.type === "function") {
               let children = thing.type(thing.props);
+
               let fallback = undefined;
               if (typeof thing.type.fallback === "function") {
                 fallback = thing.type.fallback(thing.props);
@@ -457,12 +461,18 @@ function serializeValue(
               break;
             }
 
-            if (thing.type.$$typeof === CLIENT_SYMBOL) {
-              str = `["CNode",${flatten(thing.type.$$id)},${flatten(
-                thing.props
-              )}]`;
-              break;
+            const rest: Record<string, unknown> = {};
+            if (thing.__source) {
+              rest.__source = thing.__source;
             }
+            if (thing.__self) {
+              rest.__self = thing.__self;
+            }
+            thing = {
+              type: thing.type,
+              props: thing.props,
+              ...rest,
+            };
           }
         }
 

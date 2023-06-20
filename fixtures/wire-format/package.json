@@ -5,8 +5,8 @@
   "scripts": {
     "build": "tsc -b",
     "start": "concurrently \"npm:start:*\"",
-    "start:origin": "tsx --watch --conditions source src/origin.tsx",
-    "start:edge": "tsx --watch --conditions source src/edge.tsx"
+    "start:origin": "node --no-warnings --watch --loader tsx --loader joe-dom/node-loader --conditions source src/origin.tsx",
+    "start:edge": "JOE_CLIENT=1 node --no-warnings --watch --loader tsx --loader joe-dom/node-loader --conditions source src/edge.tsx"
   },
   "dependencies": {
     "joe-dom": "*",

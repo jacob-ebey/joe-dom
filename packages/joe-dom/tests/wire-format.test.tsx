@@ -8,7 +8,7 @@ import {
   createElement,
 } from "../src/joe-dom.js";
 import { deserialize, render, serialize } from "../src/joe-dom.server.js";
-import { fallbackRuntime } from "../src/utils.js";
+import { fallbackRuntime, islandRuntime } from "../src/runtime.js";
 
 describe("wire format", () => {
   it("should render div", async () => {
@@ -172,7 +172,7 @@ describe("wire format", () => {
     const html = await new Response(rendered).text();
     strictEqual(
       html,
-      `<!--joe:0--><div>Loading...</div><!--/joe:0-->${fallbackRuntime}<joe-fb hidden data-id="0"><div>Hello, World!</div></joe-fb>`
+      `<!--joe:0--><div>Loading...</div><!--/joe:0-->${fallbackRuntime}${islandRuntime}<joe-fb hidden data-id="0"><div>Hello, World!</div></joe-fb>`
     );
   });
 
@@ -197,7 +197,7 @@ describe("wire format", () => {
     const html = await new Response(rendered).text();
     strictEqual(
       html,
-      `<!--joe:0--><div>Loading 1...</div><!--/joe:0--><!--joe:1--><div>Loading 2...</div><!--/joe:1-->${fallbackRuntime}<joe-fb hidden data-id="1"><div>Hello, 2!</div></joe-fb><joe-fb hidden data-id="0"><div>Hello, 1!</div></joe-fb>`
+      `<!--joe:0--><div>Loading 1...</div><!--/joe:0--><!--joe:1--><div>Loading 2...</div><!--/joe:1-->${fallbackRuntime}${islandRuntime}<joe-fb hidden data-id="1"><div>Hello, 2!</div></joe-fb><joe-fb hidden data-id="0"><div>Hello, 1!</div></joe-fb>`
     );
   });
 
@@ -221,7 +221,7 @@ describe("wire format", () => {
     const html = await new Response(rendered).text();
     strictEqual(
       html,
-      `<!--joe:1--><div>Loading...</div><!--/joe:1-->${fallbackRuntime}<joe-fb hidden data-id="1"><div>Hello, World!</div></joe-fb>`
+      `<!--joe:1--><div>Loading...</div><!--/joe:1-->${fallbackRuntime}${islandRuntime}<joe-fb hidden data-id="1"><div>Hello, World!</div></joe-fb>`
     );
   });
 
@@ -241,7 +241,7 @@ describe("wire format", () => {
     const html = await new Response(rendered).text();
     strictEqual(
       html,
-      `<!--joe:1--><div>Loading...</div><!--/joe:1-->${fallbackRuntime}<joe-fb hidden data-id="1"><div>Hello, World!</div></joe-fb>`
+      `<!--joe:1--><div>Loading...</div><!--/joe:1-->${fallbackRuntime}${islandRuntime}<joe-fb hidden data-id="1"><div>Hello, World!</div></joe-fb>`
     );
   });
 
@@ -265,7 +265,7 @@ describe("wire format", () => {
     const html = await new Response(rendered).text();
     strictEqual(
       html,
-      `<!--joe:0--><div>Loading 1...</div><!--/joe:0--><!--joe:1--><div>Loading 2...</div><!--/joe:1-->${fallbackRuntime}<joe-fb hidden data-id="1"><div>Hello, 2!</div></joe-fb><joe-fb hidden data-id="0"><div>Hello, 1!</div></joe-fb>`
+      `<!--joe:0--><div>Loading 1...</div><!--/joe:0--><!--joe:1--><div>Loading 2...</div><!--/joe:1-->${fallbackRuntime}${islandRuntime}<joe-fb hidden data-id="1"><div>Hello, 2!</div></joe-fb><joe-fb hidden data-id="0"><div>Hello, 1!</div></joe-fb>`
     );
   });
 

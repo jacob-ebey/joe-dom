@@ -6,7 +6,9 @@
   "files": [
     "dist/src",
     "jsx-runtime",
-    "src"
+    "src",
+    "server.js",
+    "server.d.ts"
   ],
   "main": "dist/src/joe-dom.js",
   "types": "dist/src/joe-dom.d.ts",
@@ -28,6 +30,12 @@
     "./jsx-dev-runtime": {
       "types": "./jsx-runtime/src/index.d.ts",
       "import": "./jsx-runtime/src/index.js"
+    },
+    "./loader": "./loader.js",
+    "./node-loader": "./node-loader.js",
+    "./metadata": {
+      "types": "./metadata.d.ts",
+      "import": "./metadata.js"
     }
   },
   "scripts": {
@@ -36,7 +44,8 @@
   },
   "private": true,
   "dependencies": {
-    "devalue": "4.3.2"
+    "acorn-loose": "8.3.0",
+    "preact": "10.15.1"
   },
   "devDependencies": {
     "arg": "5.0.2",
