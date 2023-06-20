@@ -166,7 +166,7 @@ export async function deserialize(
               hydrated[index] = deferred.promise;
               break;
 
-            case "VNode":
+            case "V":
               const vnode = hydrate(value[1]);
               const Component: FunctionComponent = () => vnode;
               if (value.length > 2) {
@@ -176,7 +176,7 @@ export async function deserialize(
               hydrated[index] = createElement(Component);
               break;
 
-            case "CNode":
+            case "C":
               if (!loadClientComponent)
                 throw new Error("loadClientComponent not provided");
 
@@ -440,9 +440,7 @@ function serializeValue(
 
           if (thing && "__c" in thing && thing.type) {
             if (thing.type.$$typeof === CLIENT_SYMBOL) {
-              str = `["CNode",${flatten(thing.type.$$id)},${flatten(
-                thing.props
-              )}]`;
+              str = `["C",${flatten(thing.type.$$id)},${flatten(thing.props)}]`;
               break;
             }
 
@@ -453,7 +451,7 @@ function serializeValue(
               if (typeof thing.type.fallback === "function") {
                 fallback = thing.type.fallback(thing.props);
               }
-              str = `["VNode",${flatten(children)}`;
+              str = `["V",${flatten(children)}`;
               if (fallback) {
                 str += `,${flatten(fallback)}`;
               }
