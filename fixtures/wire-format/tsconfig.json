@@ -6,6 +6,7 @@
     "target": "ES2022",
     "moduleResolution": "node",
     "jsx": "react-jsx",
-    "jsxImportSource": "joe-dom"
+    "jsxImportSource": "joe-dom",
+    "noEmit": true
   }
 }
